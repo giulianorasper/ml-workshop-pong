@@ -38,7 +38,6 @@ class PongObserver(Observer, Observable):
         observation: Pong = self.observation
         next_observation: Pong = data
 
-
         if next_observation and self.observed_player == Player.RIGHT:
             if Strategy.TRANSFORM_OBSERVATION in strategy_pattern.strategies:
                 next_observation = strategy_pattern.strategies[Strategy.TRANSFORM_OBSERVATION](next_observation)
@@ -53,66 +52,64 @@ class PongObserver(Observer, Observable):
         if next_observation is None:
             return
 
-        try:
-            action_id = observation.last_action_taken_left
+        action_id = observation.last_action_taken_left
 
-            action_to_action_id = PongObserver.__reverse_mapping(RLPongController.get_action_map())
+        action_to_action_id = PongObserver.__reverse_mapping(RLPongController.get_action_map())
 
-            state = self.get_state(observation)
-            # print(f"state: {state}")
-            action = action_to_action_id[action_id]
-            next_state = self.get_state(next_observation)
+        state = self.get_state(observation)
+        # print(f"state: {state}")
+        action = action_to_action_id[action_id]
+        next_state = self.get_state(next_observation)
 
-            reward = self.get_reward(observation, next_observation)
+        reward = self.get_reward(observation, next_observation)
 
-            # we expect the students to define neutral reward as 0
-            # we classify each non neutral-reward as sparse to selectively
-            # use more transitions with non-sparse rewards for training
-            # otherwise the learning is too slow for a workshop
-            sparse = reward != 0
-            if reward != 0:
-                printing.special_print(printing.PrintFlag.REWARD, f"{reward}")
-            if strategy_pattern.Strategy.REWARD not in strategy_pattern.strategies:
-                # scaling the default rewards into range [0, 1]
-                reward = (reward + 20) / 70
+        # we expect the students to define neutral reward as 0
+        # we classify each non neutral-reward as sparse to selectively
+        # use more transitions with non-sparse rewards for training
+        # otherwise the learning is too slow for a workshop
+        sparse = reward != 0
+        if reward != 0:
+            printing.special_print(printing.PrintFlag.REWARD, f"{reward}")
+        if strategy_pattern.Strategy.REWARD not in strategy_pattern.strategies:
+            # scaling the default rewards into range [0, 1]
+            reward = (reward + 20) / 70
 
-            # we transform the observations such that the end of each ball exchange is a terminal state
-            if observation.resets < next_observation.resets:
-                next_state = None
-            if observation.right_score < next_observation.right_score:
-                next_state = None
-            if observation.left_score < next_observation.left_score:
-                next_state = None
+        # we transform the observations such that the end of each ball exchange is a terminal state
+        if observation.resets < next_observation.resets:
+            next_state = None
+        if observation.right_score < next_observation.right_score:
+            next_state = None
+        if observation.left_score < next_observation.left_score:
+            next_state = None
 
-            transition: Transition = Transition(state, action, next_state, reward)
+        transition: Transition = Transition(state, action, next_state, reward)
 
-            self.log_metrics(observation, next_observation)
+        self.log_metrics(observation, next_observation)
 
-            # we only forward every NON_SPARSE_TRAINING-th transition to the replay buffer
-            NON_SPARSE_TRAINING = 10
-            if self.should_train <= 0 or sparse:
-                # yes we want to train
-                self.should_train = NON_SPARSE_TRAINING
-                # we add the transition to the replay buffer and request an action recommendation
-                update: PongObservationUpdate = PongObservationUpdate(transition, next_state)
-                self.notify_observers(update)
-            else:
-                # no we don't want to train
-                self.should_train -= 1
-                # we do not add the transition to the replay buffer but request an action recommendation
-                # i.e. we also skip training in this case
-                update = PongObservationUpdate(None, next_state)
-                self.notify_observers(update)
+        # we only forward every NON_SPARSE_TRAINING-th transition to the replay buffer
+        NON_SPARSE_TRAINING = 5
+        if self.should_train <= 0 or sparse:
+            # yes we want to train
+            self.should_train = NON_SPARSE_TRAINING
+            # we add the transition to the replay buffer and request an action recommendation
+            update: PongObservationUpdate = PongObservationUpdate(transition, next_state)
+            self.notify_observers(update)
+        else:
+            # no we don't want to train
+            self.should_train -= 1
+            # we do not add the transition to the replay buffer but request an action recommendation
+            # i.e. we also skip training in this case
+            update = PongObservationUpdate(None, next_state)
+            self.notify_observers(update)
 
-                # this return is required so that we do not override the current state
-                return
+            # this return is required so that we do not override the current state
+            return
 
-            # if next_state:
-            #     self.agent.select_action(next_state, convert_to_tensor=True)
+        # if next_state:
+        #     self.agent.select_action(next_state, convert_to_tensor=True)
+        self.observation: Pong = data
 
-        finally:
-            self.observation: Pong = data
-
+    @staticmethod
     def __transform_observation(observation: Pong) -> Pong:
         """
         :param observation: the observation to transform
