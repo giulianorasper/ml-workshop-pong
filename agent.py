@@ -58,7 +58,7 @@ class DQN(nn.Module):
             layer_dims = strategy_pattern.strategies[Strategy.NETWORK_STRUCTURE]()
         else:
             hidden_layer_size = 32
-            hidden_layer_amount = 4
+            hidden_layer_amount = 2
             hidden_layers = [hidden_layer_size for _ in range(hidden_layer_amount)]
             layer_dims = [n_observations] + hidden_layers + [n_actions]
 
