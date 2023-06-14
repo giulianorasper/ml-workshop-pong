@@ -1,4 +1,3 @@
-from collections import namedtuple
 from concurrent.futures import Future
 from multiprocessing import Lock
 

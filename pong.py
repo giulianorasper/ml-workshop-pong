@@ -93,6 +93,9 @@ class Pong(Observable):
         self.last_action_taken_right = PongAction(False, False)
 
         # concurrency control
+        # this is not in use right now,
+        # concurrency could be interesting for time critical simulations
+        # note that pygame has to run in the main thread (it will be unhappy otherwise)
         self.process: Thread = None
 
     def set_left_agent(self, agent: PongController):
@@ -134,10 +137,6 @@ class Pong(Observable):
         self.close_timer = self.win_screen_time_in_ticks
 
         # start the game
-        # self.process = Process(target=self.run)
-        # self.process.start()
-        # self.process = Thread(target=self.run)
-        # self.process.start()
         self.notify_observers(copy.copy(self))
         return copy.copy(self)
 
@@ -161,7 +160,6 @@ class Pong(Observable):
 
     def run(self):
         while self.running:
-            # print(f"ball_x: {self.ball_x}, ball_y: {self.ball_y}, ball_dx: {self.ball_dx}, ball_dy: {self.ball_dy}")
             if self.game_over:
                 self.notify_observers(None)
             else:
@@ -286,6 +284,10 @@ class Pong(Observable):
         self.ball_dy = new_dy
 
     def alter_velocity(self):
+        # TODO: This code probably does not what it intended to do,
+        # the ball should be reflected in a random angle,
+        # but it seems like it "prefers" to fly upwards
+        # note: that alter_velocity makes the environment non-deterministic anyways
         flies_to_right = self.ball_dx > 0
         self.ball_dx, self.ball_dy = 3, 3
 

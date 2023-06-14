@@ -156,8 +156,7 @@ class DQNAgent(Observable, Observer):
         sample = random.random()
         eps_threshold = EPS_END + (EPS_START - EPS_END) * \
                         math.exp(-1. * self.steps_done / EPS_DECAY)
-        # print(f"buffer-len: {len(self.memory)}")
-        # self.steps_done += 1
+
         if sample > eps_threshold or self.eval_mode:
             with torch.no_grad():
                 # t.max(1) will return the largest column value of each row.
@@ -165,7 +164,6 @@ class DQNAgent(Observable, Observer):
                 # found, so we pick action with the larger expected reward.
                 q_values = self.policy_net(state)
                 self.last_action_value = q_values.max(1)[0].item()
-                # print("q-values ", q_values)
                 action_id = q_values.max(1)[1].view(1, 1).item()
                 self.notify_observers(action_id)
                 return action_id
@@ -198,18 +196,6 @@ class DQNAgent(Observable, Observer):
         # Store the transition in memory
         self.memory.push(state, action, next_state, reward)
 
-        # if done:
-        #     print("Episode {} finished after {} timesteps".format(i_episode, t + 1))
-        #     self.episode_durations.append(t + 1)
-        #     plot_durations()
-
-        # after ALL TRAINING is finished
-        # print('Complete')
-        # plot_durations(show_result=True)
-        # plt.ioff()
-        # plt.show()
-        # Initialize the environment and get it's state
-
     def do_train(self):
         if self.eval_mode:
             return
@@ -230,7 +216,6 @@ class DQNAgent(Observable, Observer):
         if transition is not None:
             self.train(transition)
             state, action, next_state, reward = transition
-            # print(reward)
         if state is not None:
             self.select_action(state, convert_to_tensor=True)
 
@@ -247,8 +232,7 @@ class DQNAgent(Observable, Observer):
         # (a final state would've been the one after which simulation ended)
         non_final_mask = torch.tensor(tuple(map(lambda s: s is not None,
                                                 batch.next_state)), device=device, dtype=torch.bool)
-        non_final_next_states = torch.cat([s for s in batch.next_state
-                                           if s is not None])
+
         non_final_next_states = torch.cat([s for s in batch.next_state
                                            if s is not None])
 
@@ -272,12 +256,14 @@ class DQNAgent(Observable, Observer):
         # Compute the expected Q values
         expected_state_action_values = (next_state_values * GAMMA) + reward_batch
 
-        # Compute Huber loss
+        # Compute MSE loss
         criterion = nn.MSELoss()
         loss = criterion(state_action_values, expected_state_action_values.unsqueeze(1))
 
         lambda_reg = 0.01
         l2_reg = sum(torch.sum(param ** 2) for param in self.policy_net.parameters())
+
+        # Uncomment if you want to use L2 regularization
         # loss += lambda_reg * l2_reg
         self.loss.append(loss.item())
 
@@ -308,6 +294,3 @@ def normalize(batch):
     # Normalize the data
     return (batch - mean) / (std + 1e-7)  # adding a small value to avoid division by zero
 
-
-if __name__ == '__main__':
-    train()
