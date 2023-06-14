@@ -57,7 +57,7 @@ def train(episodes=100, training_time=None):
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    printing.special_prints = [] # [printing.SpecialPrint.REWARD]
+    printing.print_flags = [] # [printing.SpecialPrint.REWARD]
     train(training_time=60)
 
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/

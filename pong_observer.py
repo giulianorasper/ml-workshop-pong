@@ -71,7 +71,7 @@ class PongObserver(Observer, Observable):
             # otherwise the learning is too slow for a workshop
             sparse = reward != 0
             if reward != 0:
-                printing.special_print(printing.SpecialPrint.REWARD, f"{reward}")
+                printing.special_print(printing.PrintFlag.REWARD, f"{reward}")
             if strategy_pattern.Strategy.REWARD not in strategy_pattern.strategies:
                 # scaling the default rewards into range [0, 1]
                 reward = (reward + 20) / 70
@@ -146,7 +146,7 @@ class PongObserver(Observer, Observable):
     @staticmethod
     def get_reward(observation: Pong, next_observation: Pong):
         if Strategy.REWARD in strategy_pattern.strategies:
-            return strategy_pattern.strategies[Strategy.STATE](observation, next_observation)
+            return strategy_pattern.strategies[Strategy.REWARD](observation, next_observation)
 
         reward = 0
 

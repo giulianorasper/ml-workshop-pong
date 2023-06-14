@@ -37,16 +37,16 @@ def run(level: LogLevel, function, *args):
         function(*args)
 
 
-class SpecialPrint(Enum):
+class PrintFlag(Enum):
     REWARD = 1
 
 
-special_prints = []
+print_flags = []
 
 
-def special_print(print_type: SpecialPrint, message: str):
+def special_print(print_type: PrintFlag, message: str):
     exists = False
-    for special_print in special_prints:
+    for special_print in print_flags:
         if special_print == print_type:
             exists = True
     if exists:
