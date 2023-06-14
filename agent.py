@@ -57,16 +57,6 @@ class DQN(nn.Module):
         if Strategy.NETWORK_STRUCTURE in strategy_pattern.strategies:
             layer_dims = strategy_pattern.strategies[Strategy.NETWORK_STRUCTURE]()
         else:
-            n_obs, n_act = PongObserver.get__n_obs_n_act()
-            if n_observations is None:
-                if should_print:
-                    printing.info("using inferred n_observations")
-                n_observations = n_obs
-            if n_actions is None:
-                if should_print:
-                    printing.info("using inferred n_actions")
-                n_actions = n_act
-
             hidden_layer_size = 1024
             hidden_layer_amount = 2
             hidden_layers = [hidden_layer_size for _ in range(hidden_layer_amount)]
@@ -113,6 +103,14 @@ steps_done = 0
 class DQNAgent(Observable, Observer):
     def __init__(self, n_observations=None, n_actions=None, eval_mode=False):
         super().__init__()
+
+        n_obs, n_act = PongObserver.get__n_obs_n_act()
+        if n_observations is None:
+            printing.info("using inferred n_observations")
+            n_observations = n_obs
+        if n_actions is None:
+            printing.info("using inferred n_actions")
+            n_actions = n_act
 
         self.n_observations = n_observations
         self.n_actions = n_actions
@@ -168,8 +166,7 @@ class DQNAgent(Observable, Observer):
                 self.notify_observers(action_id)
                 return action_id
         else:
-            action_id = torch.tensor([[np.random.choice(env.get_action_space())]], device=device,
-                                     dtype=torch.long).item()
+            action_id = random.randint(0, self.n_actions - 1)
             self.notify_observers(action_id)
             return action_id
 
