@@ -3,11 +3,12 @@ from enum import Enum
 
 class LogLevel(Enum):
     INFO = 1
-    ANALYSIS = 2
-    DEBUG = 3
+    WARN = 2
+    ANALYSIS = 3
+    DEBUG = 4
 
 
-log_level = LogLevel.INFO
+log_level = LogLevel.WARN
 
 
 def log(level: LogLevel, message: str):
@@ -17,6 +18,10 @@ def log(level: LogLevel, message: str):
 
 def info(message: str):
     log(LogLevel.INFO, message)
+
+
+def warn(message: str):
+    log(LogLevel.WARN, message)
 
 
 def analysis(message: str):

@@ -6,7 +6,9 @@ import time
 from multiprocessing import Process
 from threading import Thread
 
+import numpy as np
 import pygame
+from PIL import Image
 from pygame.locals import *
 from observer_pattern import Observable
 from pong_controller import PongController, KeyboardPongController
@@ -225,31 +227,7 @@ class Pong(Observable):
                     self.game_over = True
 
             if self.graphical:
-                # Clear the screen
-                self.screen.fill(BLACK)
-
-                if not self.game_over:
-                    # Draw the paddles, ball, and scores
-                    pygame.draw.rect(self.screen, WHITE,
-                                     (self.left_paddle_x, self.left_paddle_y, self.paddle_width, self.paddle_height))
-                    pygame.draw.rect(self.screen, WHITE,
-                                     (self.right_paddle_x, self.right_paddle_y, self.paddle_width, self.paddle_height))
-                    pygame.draw.circle(self.screen, WHITE, (self.ball_x, self.ball_y), 10)
-                    left_score_text = self.font.render(str(self.left_score), True, WHITE)
-                    right_score_text = self.font.render(str(self.right_score), True, WHITE)
-                    self.screen.blit(left_score_text, (width // 4 - left_score_text.get_width() // 2, 10))
-                    self.screen.blit(right_score_text, (width // 4 * 3 - right_score_text.get_width() // 2, 10))
-                else:
-                    # Display winning message
-                    if self.left_score >= 5:
-                        win_text = self.font.render("Player 1 Wins!", True, WHITE)
-                    else:
-                        win_text = self.font.render("Player 2 Wins!", True, WHITE)
-                    self.screen.blit(win_text,
-                                     (width // 2 - win_text.get_width() // 2, height // 2 - win_text.get_height() // 2))
-
-                # Update the display
-                pygame.display.flip()
+                self.refresh_display()
 
             if self.game_over:
                 self.close_timer -= 1
@@ -259,6 +237,33 @@ class Pong(Observable):
                     # Close the game window
                     # print("Game Over")
                     return
+
+    def refresh_display(self):
+        # Clear the screen
+        self.screen.fill(BLACK)
+
+        if not self.game_over:
+            # Draw the paddles, ball, and scores
+            pygame.draw.rect(self.screen, WHITE,
+                             (self.left_paddle_x, self.left_paddle_y, self.paddle_width, self.paddle_height))
+            pygame.draw.rect(self.screen, WHITE,
+                             (self.right_paddle_x, self.right_paddle_y, self.paddle_width, self.paddle_height))
+            pygame.draw.circle(self.screen, WHITE, (self.ball_x, self.ball_y), 10)
+            left_score_text = self.font.render(str(self.left_score), True, WHITE)
+            right_score_text = self.font.render(str(self.right_score), True, WHITE)
+            self.screen.blit(left_score_text, (width // 4 - left_score_text.get_width() // 2, 10))
+            self.screen.blit(right_score_text, (width // 4 * 3 - right_score_text.get_width() // 2, 10))
+        else:
+            # Display winning message
+            if self.left_score >= 5:
+                win_text = self.font.render("Player 1 Wins!", True, WHITE)
+            else:
+                win_text = self.font.render("Player 2 Wins!", True, WHITE)
+            self.screen.blit(win_text,
+                             (width // 2 - win_text.get_width() // 2, height // 2 - win_text.get_height() // 2))
+
+        # Update the display
+        pygame.display.flip()
 
     def _reset_ball(self):
         self.ball_dx, self.ball_dy = 3, 3
@@ -303,6 +308,20 @@ class Pong(Observable):
 
     def copy(self):
         return copy.deepcopy(self)
+
+    def get_image(self):
+        # Take a screenshot of the screen surface
+        screenshot = pygame.surfarray.array3d(self.screen)
+
+        # Convert the screenshot to a PIL image
+        pil_image = Image.fromarray(np.uint8(screenshot))
+
+        # Rotate the image by 90 degrees clockwise
+        pil_image = pil_image.rotate(360 - 90, expand=True)
+        pil_image = pil_image.transpose(Image.FLIP_LEFT_RIGHT)
+
+        # Display the PIL image
+        return pil_image
 
 
 def do_reset(game):

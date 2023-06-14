@@ -3,6 +3,8 @@ class Observable:
         self.observers = []
 
     def register_observer(self, observer):
+        if observer in self.observers:
+            raise ValueError("Observer already registered")
         self.observers.append(observer)
 
     def unregister_observer(self, observer):

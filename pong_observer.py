@@ -19,15 +19,15 @@ class Player(Enum):
 
 class PongObserver(Observer, Observable):
 
-    def __init__(self, observed_game: Pong, observed_player=Player.LEFT):
+    def __init__(self, observed_player=Player.LEFT):
         """
-        :param observed_game: the Pong game to observe
         :param observed_player: the Player to observe
         :note: Observing the right player requires an adequate implementation
         of the transform strategy, which swaps the sides of an observation.
         """
         super().__init__()
-        observed_game.register_observer(self)
+        if Strategy.TRANSFORM_OBSERVATION not in strategy_pattern.strategies and observed_player == Player.RIGHT:
+            printing.warn("Observing the right player without a transform strategy!")
         self.observation: Pong = None
         self.observed_player = observed_player
         self.should_train = 0
@@ -36,79 +36,99 @@ class PongObserver(Observer, Observable):
 
     def update(self, data):
         observation: Pong = self.observation
-        if observation and self.observed_player == Player.RIGHT:
-            if Strategy.TRANSFORM_OBSERVATION in strategy_pattern.strategies:
-                observation = strategy_pattern.strategies[Strategy.TRANSFORM_OBSERVATION](observation)
-            else:
-                raise Exception("Observing the right player requires a transform strategy")
-
         next_observation: Pong = data
+
+
+        if next_observation and self.observed_player == Player.RIGHT:
+            if Strategy.TRANSFORM_OBSERVATION in strategy_pattern.strategies:
+                next_observation = strategy_pattern.strategies[Strategy.TRANSFORM_OBSERVATION](next_observation)
 
         # note: we throw away the first observation, because we don't have a transition yet
         # this also causes the first action to be random in evaluation mode
+
         if observation is None:
             self.observation = next_observation
             return
+
         if next_observation is None:
             return
 
-        action_id = observation.last_action_taken_left
+        try:
+            action_id = observation.last_action_taken_left
 
-        action_to_action_id = PongObserver.__reverse_mapping(RLPongController.get_action_map())
+            action_to_action_id = PongObserver.__reverse_mapping(RLPongController.get_action_map())
 
-        state = self.get_state(observation)
-        # print(f"state: {state}")
-        action = action_to_action_id[action_id]
-        next_state = self.get_state(next_observation)
+            state = self.get_state(observation)
+            # print(f"state: {state}")
+            action = action_to_action_id[action_id]
+            next_state = self.get_state(next_observation)
 
-        reward = self.get_reward(observation, next_observation)
+            reward = self.get_reward(observation, next_observation)
 
-        # we expect the students to define neutral reward as 0
-        # we classify each non neutral-reward as sparse to selectively
-        # use more transitions with non-sparse rewards for training
-        # otherwise the learning is too slow for a workshop
-        sparse = reward != 0
-        if reward != 0:
-            printing.special_print(printing.SpecialPrint.REWARD, f"{reward}")
-        if strategy_pattern.Strategy.REWARD not in strategy_pattern.strategies:
-            # scaling the default rewards into range [0, 1]
-            reward = (reward + 20) / 70
+            # we expect the students to define neutral reward as 0
+            # we classify each non neutral-reward as sparse to selectively
+            # use more transitions with non-sparse rewards for training
+            # otherwise the learning is too slow for a workshop
+            sparse = reward != 0
+            if reward != 0:
+                printing.special_print(printing.SpecialPrint.REWARD, f"{reward}")
+            if strategy_pattern.Strategy.REWARD not in strategy_pattern.strategies:
+                # scaling the default rewards into range [0, 1]
+                reward = (reward + 20) / 70
 
-        # we transform the observations such that the end of each ball exchange is a terminal state
-        if observation.resets < next_observation.resets:
-            next_state = None
-        if observation.right_score < next_observation.right_score:
-            next_state = None
-        if observation.left_score < next_observation.left_score:
-            next_state = None
+            # we transform the observations such that the end of each ball exchange is a terminal state
+            if observation.resets < next_observation.resets:
+                next_state = None
+            if observation.right_score < next_observation.right_score:
+                next_state = None
+            if observation.left_score < next_observation.left_score:
+                next_state = None
 
-        transition: Transition = Transition(state, action, next_state, reward)
+            transition: Transition = Transition(state, action, next_state, reward)
 
-        self.log_metrics(observation, next_observation)
+            self.log_metrics(observation, next_observation)
 
-        # we only forward every NON_SPARSE_TRAINING-th transition to the replay buffer
-        NON_SPARSE_TRAINING = 10
-        if self.should_train <= 0 or sparse:
-            # yes we want to train
-            self.should_train = NON_SPARSE_TRAINING
-            # we add the transition to the replay buffer and request an action recommendation
-            update: PongObservationUpdate = PongObservationUpdate(transition, next_state)
-            self.notify_observers(update)
-        else:
-            # no we don't want to train
-            self.should_train -= 1
-            # we do not add the transition to the replay buffer but request an action recommendation
-            # i.e. we also skip training in this case
-            update = PongObservationUpdate(None, next_state)
-            self.notify_observers(update)
+            # we only forward every NON_SPARSE_TRAINING-th transition to the replay buffer
+            NON_SPARSE_TRAINING = 10
+            if self.should_train <= 0 or sparse:
+                # yes we want to train
+                self.should_train = NON_SPARSE_TRAINING
+                # we add the transition to the replay buffer and request an action recommendation
+                update: PongObservationUpdate = PongObservationUpdate(transition, next_state)
+                self.notify_observers(update)
+            else:
+                # no we don't want to train
+                self.should_train -= 1
+                # we do not add the transition to the replay buffer but request an action recommendation
+                # i.e. we also skip training in this case
+                update = PongObservationUpdate(None, next_state)
+                self.notify_observers(update)
 
-            # this return is required so that we do not override the current state
-            return
+                # this return is required so that we do not override the current state
+                return
 
-        # if next_state:
-        #     self.agent.select_action(next_state, convert_to_tensor=True)
+            # if next_state:
+            #     self.agent.select_action(next_state, convert_to_tensor=True)
 
-        self.observation: Pong = data
+        finally:
+            self.observation: Pong = data
+
+    def __transform_observation(observation: Pong) -> Pong:
+        """
+        :param observation: the observation to transform
+        :return: Observation with the locations of the paddles,
+        the ball and the ball's velocity swapped (reflected on vertical axis).
+        This function may be used as strategy for using an agent
+        trained on the left hand side also on the right hand side.
+        Note: This is not enough for using the existing framework to train
+        a right hand side agent from scratch.
+        Exercise: Why is that? Extend this function such that it also enables training!
+        """
+        observation.left_paddle_y, observation.right_paddle_y = observation.right_paddle_y, observation.left_paddle_y
+        width = pong.width
+        observation.ball_x = width - observation.ball_x
+        observation.ball_dx = -observation.ball_dx
+        return observation
 
     @staticmethod
     def __reverse_mapping(mapping):
