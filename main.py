@@ -47,17 +47,18 @@ def train(episodes=100, training_time=None):
         pong.run()
         dqn_agent.next_episode()
 
+    dqn_agent.save_model("model.ckpt")
+
     if printing.log_level == printing.LogLevel.ANALYSIS:
         dqn_agent.plot_results()
         pong_observer.plot_ball_touches()
 
-    dqn_agent.save_model("model.ckpt")
     pong.quit()
 
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     printing.print_flags = [] # [printing.SpecialPrint.REWARD]
-    train(training_time=60)
+    train(training_time=60*2)
 
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/

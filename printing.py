@@ -8,7 +8,7 @@ class LogLevel(Enum):
     DEBUG = 4
 
 
-log_level = LogLevel.WARN
+log_level = LogLevel.ANALYSIS
 
 
 def log(level: LogLevel, message: str):
