@@ -30,17 +30,18 @@ def train(episodes=100, training_time=None):
     graphical = True
     pong: Pong = Pong(right_invincible=True, ticks_per_second=6000, graphical=graphical, win_screen_time_in_ticks=10)
     dqn_agent = DQNAgent()
-    pong_observer: PongObserver = PongObserver(pong, Player.LEFT)
+    pong_observer: PongObserver = PongObserver(pong)
     pong_observer.register_observer(dqn_agent)
     pong_controller = RLPongController(dqn_agent)
     pong.set_left_agent(pong_controller)
 
     episode = 0
+    start_time = time.time()
     end_time = time.time() + training_time
 
     while episode <= episodes or time.time() < end_time:
         episode += 1
-        printing.info(f"Episode {episode}")
+        printing.info(f"Episode {episode} / {int(time.time() - start_time)} seconds")
         pong.reset()
         pong.run()
         dqn_agent.next_episode()

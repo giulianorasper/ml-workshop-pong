@@ -19,11 +19,17 @@ class Player(Enum):
 
 class PongObserver(Observer, Observable):
 
-    def __init__(self, observed_game: Pong, observed_player):
+    def __init__(self, observed_game: Pong, observed_player=Player.LEFT):
+        """
+        :param observed_game: the Pong game to observe
+        :param observed_player: the Player to observe
+        :note: Observing the right player requires an adequate implementation
+        of the transform strategy, which swaps the sides of an observation.
+        """
         super().__init__()
         observed_game.register_observer(self)
-        self.observed_player = observed_player
         self.observation: Pong = None
+        self.observed_player = observed_player
         self.should_train = 0
 
         self.ball_touches = []
@@ -33,22 +39,21 @@ class PongObserver(Observer, Observable):
         if observation and self.observed_player == Player.RIGHT:
             if Strategy.TRANSFORM_OBSERVATION in strategy_pattern.strategies:
                 observation = strategy_pattern.strategies[Strategy.TRANSFORM_OBSERVATION](observation)
+            else:
+                raise Exception("Observing the right player requires a transform strategy")
 
         next_observation: Pong = data
 
-        # TODO: throwing away the first observation might not be ideal (no action is chosen by agent)
+        # note: we throw away the first observation, because we don't have a transition yet
+        # this also causes the first action to be random in evaluation mode
         if observation is None:
             self.observation = next_observation
             return
         if next_observation is None:
             return
 
-        if self.observed_player == Player.LEFT:
-            action_id = observation.last_action_taken_left
-        else:
-            action_id = observation.last_action_taken_right
+        action_id = observation.last_action_taken_left
 
-        # TODO: generate mapping at initialisation instead?
         action_to_action_id = PongObserver.__reverse_mapping(RLPongController.get_action_map())
 
         state = self.get_state(observation)
@@ -56,39 +61,49 @@ class PongObserver(Observer, Observable):
         action = action_to_action_id[action_id]
         next_state = self.get_state(next_observation)
 
-        # TODO: add done attribute to Pong?
-        reward = self.get_reward(self.observed_player, observation, next_observation)
-        sparse = reward == 0
+        reward = self.get_reward(observation, next_observation)
+
+        # we expect the students to define neutral reward as 0
+        # we classify each non neutral-reward as sparse to selectively
+        # use more transitions with non-sparse rewards for training
+        # otherwise the learning is too slow for a workshop
+        sparse = reward != 0
         if reward != 0:
             printing.special_print(printing.SpecialPrint.REWARD, f"{reward}")
         if strategy_pattern.Strategy.REWARD not in strategy_pattern.strategies:
+            # scaling the default rewards into range [0, 1]
             reward = (reward + 20) / 70
 
-
-        # TODO: LEFT AGENT!
+        # we transform the observations such that the end of each ball exchange is a terminal state
         if observation.resets < next_observation.resets:
             next_state = None
         if observation.right_score < next_observation.right_score:
             next_state = None
+        if observation.left_score < next_observation.left_score:
+            next_state = None
 
         transition: Transition = Transition(state, action, next_state, reward)
 
-        self.log_metrics(self.observed_player, observation, next_observation)
+        self.log_metrics(observation, next_observation)
 
-        if self.should_train <= 0 or not sparse:
+        # we only forward every NON_SPARSE_TRAINING-th transition to the replay buffer
+        NON_SPARSE_TRAINING = 10
+        if self.should_train <= 0 or sparse:
             # yes we want to train
-            self.should_train = 10
+            self.should_train = NON_SPARSE_TRAINING
+            # we add the transition to the replay buffer and request an action recommendation
             update: PongObservationUpdate = PongObservationUpdate(transition, next_state)
             self.notify_observers(update)
         else:
             # no we don't want to train
             self.should_train -= 1
+            # we do not add the transition to the replay buffer but request an action recommendation
+            # i.e. we also skip training in this case
             update = PongObservationUpdate(None, next_state)
             self.notify_observers(update)
 
             # this return is required so that we do not override the current state
             return
-
 
         # if next_state:
         #     self.agent.select_action(next_state, convert_to_tensor=True)
@@ -109,9 +124,9 @@ class PongObserver(Observer, Observable):
         return observation.left_paddle_y / 400, observation.ball_x / pong.width, observation.ball_y / pong.height, observation.ball_dx / 6, observation.ball_dy / 6, observation.ticks_this_ball_exchange / 1000
 
     @staticmethod
-    def get_reward(observed_player: Player, observation: Pong, next_observation: Pong):
+    def get_reward(observation: Pong, next_observation: Pong):
         if Strategy.REWARD in strategy_pattern.strategies:
-            return strategy_pattern.strategies[Strategy.STATE](observed_player, observation, next_observation)
+            return strategy_pattern.strategies[Strategy.STATE](observation, next_observation)
 
         reward = 0
 
@@ -133,13 +148,11 @@ class PongObserver(Observer, Observable):
         #     reward += -1
         return reward
 
-    def log_metrics(self, observed_player: Player, observation: Pong, next_observation: Pong):
-        # TODO: also log ball touches for right player
+    def log_metrics(self, observation: Pong, next_observation: Pong):
         if observation.resets < next_observation.resets:
             self.ball_touches.append(observation.ball_touches_left)
 
     def plot_ball_touches(self):
-        # TODO: also plot ball touches for right player
         self.ball_touches.append(self.observation.ball_touches_left)
         visualisation.plot_results(self.ball_touches, title="Ball touches per Episode", xlabel="Episode",
                                    ylabel="Ball touches")

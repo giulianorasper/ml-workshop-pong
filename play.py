@@ -11,7 +11,7 @@ def play(ai_enemy=False, invincible_enemy=False, debug=False, swap_players=False
         pong.register_observer(PongObserver(pong, Player.LEFT))
     elif ai_enemy:
         dqn_agent = DQNAgent(eval_mode=True)
-        pong_observer: PongObserver = PongObserver(pong, Player.LEFT)
+        pong_observer: PongObserver = PongObserver(pong)
         pong_observer.register_observer(dqn_agent)
         pong_controller = RLPongController(dqn_agent)
         if swap_players:
