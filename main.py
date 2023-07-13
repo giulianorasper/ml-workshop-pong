@@ -29,31 +29,35 @@ def train(episodes=100, training_time=None):
 
     graphical = True
     pong: Pong = Pong(right_invincible=True, ticks_per_second=6000, graphical=graphical, win_screen_time_in_ticks=10)
-    dqn_agent = DQNAgent()
-    pong_observer: PongObserver = PongObserver()
-    pong.register_observer(pong_observer)
-    pong_observer.register_observer(dqn_agent)
-    pong_controller = RLPongController(dqn_agent)
-    pong.set_left_agent(pong_controller)
 
-    episode = 0
-    start_time = time.time()
-    end_time = time.time() + training_time
+    try:
 
-    while episode <= episodes or time.time() < end_time:
-        episode += 1
-        printing.info(f"Episode {episode} / {int(time.time() - start_time)} seconds")
-        pong.reset()
-        pong.run()
-        dqn_agent.next_episode()
+        dqn_agent = DQNAgent()
+        pong_observer: PongObserver = PongObserver()
+        pong.register_observer(pong_observer)
+        pong_observer.register_observer(dqn_agent)
+        pong_controller = RLPongController(dqn_agent)
+        pong.set_left_agent(pong_controller)
 
-    dqn_agent.save_model("model.ckpt")
+        episode = 0
+        start_time = time.time()
+        end_time = time.time() + training_time
 
-    if printing.log_level == printing.LogLevel.ANALYSIS:
-        dqn_agent.plot_results()
-        pong_observer.plot_ball_touches()
+        while episode <= episodes or time.time() < end_time:
+            episode += 1
+            printing.info(f"Episode {episode} / {int(time.time() - start_time)} seconds")
+            pong.reset()
+            pong.run()
+            dqn_agent.next_episode()
 
-    pong.quit()
+        dqn_agent.save_model("model.ckpt")
+
+        if printing.log_level == printing.LogLevel.ANALYSIS:
+            dqn_agent.plot_results()
+            pong_observer.plot_ball_touches()
+
+    finally:
+        pong.quit()
 
 
 # Press the green button in the gutter to run the script.
